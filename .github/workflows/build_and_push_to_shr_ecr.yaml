@@ -1,0 +1,40 @@
+on:
+  workflow_call:
+    inputs:
+      dockerfile_path:
+        required: false
+        type: string
+        default: "."
+
+jobs:
+  build_and_push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v1
+      with:
+        aws-access-key-id: ${{ secrets.SHR_ECR_CI_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.SHR_ECR_CI_SECRET_ACCESS_KEY }}
+        aws-region: us-east-2
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v1
+
+    - uses: rlespinasse/github-slug-action@v3.x
+    - name: Build, tag, and push image to Amazon ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        ECR_REPOSITORY: ${{ env.GITHUB_REPOSITORY_NAME_PART_SLUG }}
+        IMAGE_TAG: ${{ github.ref_name }}
+        PYPI_USER: github_cicd
+        SHR_PYPI_CICD_PWD: ${{ secrets.SHR_PYPI_CICD_PWD }}
+      run: |
+        export DOCKER_BUILDKIT=1
+        docker build --build-arg SHR_PYPI_CICD_PWD=$SHR_PYPI_CICD_PWD -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ${{ inputs.dockerfile_path }}
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
