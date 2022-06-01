@@ -5,6 +5,23 @@ on:
         required: false
         type: string
         default: "."
+      pypi-user:
+        description: "username to use for accessing myome pypi server"
+        required: false
+        type: string
+        default: "github_cicd"
+
+    secrets:
+      aws-access-key-id: 
+        description: "SHR_ECR_CI_ACCESS_KEY_ID as created by terraform and stored in secrets manager"
+        required: true       
+      aws-secret-access-key: 
+        description: "SHR_ECR_CI_SECRET_ACCESS_KEY as created by terraform and stored in secrets manager"
+        required: true 
+      pypi-pw:
+        description: "SHR_PYPI_CICD_PWD password for accessing myome pypi server"
+        required: false
+
 
 jobs:
   build_and_push:
@@ -18,8 +35,8 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v1
       with:
-        aws-access-key-id: ${{ secrets.SHR_ECR_CI_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.SHR_ECR_CI_SECRET_ACCESS_KEY }}
+        aws-access-key-id: ${{ secrets.aws-access-key-id }}
+        aws-secret-access-key: ${{ secrets.aws-secret-access-key }}
         aws-region: us-east-2
 
     - name: Login to Amazon ECR
@@ -32,8 +49,8 @@ jobs:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         ECR_REPOSITORY: ${{ env.GITHUB_REPOSITORY_NAME_PART_SLUG }}
         IMAGE_TAG: ${{ github.ref_name }}
-        PYPI_USER: github_cicd
-        SHR_PYPI_CICD_PWD: ${{ secrets.SHR_PYPI_CICD_PWD }}
+        SHR_PYPI_CICD_USR: ${{ inputs.pypi-user}}
+        SHR_PYPI_CICD_PWD: ${{ secrets.pypi-pw }}
       run: |
         export DOCKER_BUILDKIT=1
         docker build --build-arg SHR_PYPI_CICD_PWD=$SHR_PYPI_CICD_PWD -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ${{ inputs.dockerfile_path }}
